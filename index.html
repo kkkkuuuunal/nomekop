@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Nomekop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ui-bar">
+    <button id="startBtn">Start</button>
+    <button id="restartBtn">Restart</button>
+    <span class="hint">Move: W A S D · Interact: E</span>
+  </div>
+
+  <div id="gameWrap">
+    <canvas id="game" width="800" height="600"></canvas>
+    <div id="dialog" class="hidden"></div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
