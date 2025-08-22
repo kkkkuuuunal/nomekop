@@ -5,6 +5,8 @@
   const startBtn = document.getElementById('startBtn');
   const restartBtn = document.getElementById('restartBtn');
   const dialog = document.getElementById('dialog');
+  const picker = document.getElementById('picker');
+  const pickerChoices = document.getElementById('pickerChoices');
 
   const TILE = 40;
   const WIDTH = canvas.width;
@@ -19,27 +21,26 @@
     player: { x: WIDTH/2, y: HEIGHT/2, w: 26, h: 26, color: '#1a1a1a' },
     keys: { w:false, a:false, s:false, d:false },
     npc: { x: 4*TILE, y: 2*TILE, w: 28, h: 28 },
-    house: { x: 13*TILE, y: 5*TILE, w: 4*TILE, h: 4*TILE, door: {x: 14*TILE, y: 9*TILE, w: TILE, h: TILE} },
+    house: { x: 13*TILE, y: 5*TILE, w: 4*TILE, h: 4*TILE, door: {x: 14*TILE, y: 9*TILE, w: TILE, h: TILE}, indoorDoor: {} },
     trees: [],
     roads: [],
     obstacles: [],
     interiorObstacles: [],
     pickedNomekop: null,
+    starterMoves: [],
   };
+
+  const STARTERS = [
+    { name: 'Blue', color: '#4da6ff', moves: ['Tackle', 'Splash'] },
+    { name: 'Red', color: '#ff4d4d', moves: ['Tackle', 'Flame'] },
+    { name: 'Green', color: '#4dff4d', moves: ['Tackle', 'Vine Whip'] }
+  ];
 
   function rectIntersects(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
   function pushRect(list, x,y,w,h){ list.push({x,y,w,h}); }
-  function rand(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
-  function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
-  function generateNomekopName() {
-    const A = ['no','na','ne','ni','nu','ko','ke','ka','ki','ku','mo','me','ma','mi','mu','po','pe','pa','pi','pu','lo','le'];
-    const B = ['mek','mok','mop','kop','kep','kap','nip','nim','nom','lom','lek','pek','puk','kek','kim','kum','pom'];
-    const C = ['ra','re','ri','ru','ro','ta','to','tu','ti','te','','',''];
-    return cap(rand(A)) + rand(B) + rand(C);
-  }
 
   function buildTown() {
     STATE.trees = [];
@@ -72,11 +73,20 @@
 
   function buildInterior() {
     STATE.interiorObstacles = [];
-    pushRect(STATE.interiorObstacles, 0, 0, WIDTH, TILE);
-    pushRect(STATE.interiorObstacles, 0, HEIGHT-TILE, WIDTH, TILE);
-    pushRect(STATE.interiorObstacles, 0, 0, TILE, HEIGHT);
-    pushRect(STATE.interiorObstacles, WIDTH-TILE, 0, TILE, HEIGHT);
-    STATE.house.indoorDoor = { x: (WIDTH/2 - TILE/2), y: HEIGHT - TILE, w: TILE, h: TILE };
+    const doorY = HEIGHT - TILE; // bottom door
+    const doorX = WIDTH/2 - TILE/2;
+
+    // walls around edges, leaving bottom door gap
+    pushRect(STATE.interiorObstacles, 0, 0, WIDTH, TILE); // top
+    pushRect(STATE.interiorObstacles, 0, 0, TILE, HEIGHT); // left
+    pushRect(STATE.interiorObstacles, WIDTH-TILE, 0, TILE, HEIGHT); // right
+    // bottom wall left of door
+    pushRect(STATE.interiorObstacles, 0, doorY, doorX, TILE);
+    // bottom wall right of door
+    pushRect(STATE.interiorObstacles, doorX + TILE, doorY, WIDTH - (doorX + TILE), TILE);
+
+    // indoor door
+    STATE.house.indoorDoor = { x: doorX, y: doorY, w: TILE, h: TILE };
   }
 
   function resetState() {
@@ -84,7 +94,7 @@
     STATE.scene = 'town';
     STATE.player.x = WIDTH/2 - STATE.player.w/2;
     STATE.player.y = HEIGHT/2 - STATE.player.h/2;
-    STATE.pickedNomekop = null;
+    picker.classList.add('hidden');
     hideDialog();
   }
 
@@ -117,6 +127,11 @@
     const door = STATE.house.indoorDoor;
     ctx.fillStyle = '#7c5a3a';
     ctx.fillRect(door.x, door.y, door.w, door.h);
+    // draw starter sprite if chosen
+    if(STATE.pickedNomekop){
+      ctx.fillStyle = STATE.player.color;
+      ctx.fillRect(WIDTH/2-20, HEIGHT/2-20, 40, 40);
+    }
   }
 
   function drawPlayer() {
@@ -167,10 +182,27 @@
   function enterHouse() {
     STATE.scene='house';
     STATE.player.x=WIDTH/2-STATE.player.w/2;
-    STATE.player.y=HEIGHT-TILE*1.8;
+    STATE.player.y=HEIGHT-TILE*2;
     hideDialog();
-    if(!STATE.pickedNomekop) STATE.pickedNomekop=generateNomekopName();
-    showDialog(`You received ${STATE.pickedNomekop}! Go to the bottom door and press E to leave.`);
+    if(!STATE.pickedNomekop) showPicker();
+    else showDialog(`Welcome back! You have ${STATE.pickedNomekop}.`);
+  }
+
+  function showPicker(){
+    pickerChoices.innerHTML = '';
+    STARTERS.forEach(starter=>{
+      const btn=document.createElement('button');
+      btn.textContent = starter.name;
+      btn.onclick=()=>{
+        STATE.pickedNomekop = starter.name;
+        STATE.player.color = starter.color;
+        STATE.starterMoves = starter.moves;
+        picker.classList.add('hidden');
+        showDialog(`You chose ${starter.name}! Go to the bottom door and press E to leave.`);
+      };
+      pickerChoices.appendChild(btn);
+    });
+    picker.classList.remove('hidden');
   }
 
   function exitHouse() {
@@ -184,6 +216,12 @@
   function showDialog(text){ dialog.textContent=text; dialog.classList.remove('hidden'); }
   function hideDialog(){ dialog.classList.add('hidden'); }
 
+  function showMoves(){
+    if(STATE.pickedNomekop){
+      alert(`${STATE.pickedNomekop}'s moves: ${STATE.starterMoves.join(', ')}`);
+    }
+  }
+
   function loop() {
     if(STATE.running){
       movePlayer();
@@ -194,12 +232,14 @@
 
   window.addEventListener('keydown', e=>{
     const k=e.key.toLowerCase();
-    if(['w','a','s','d','e'].includes(k)){
+    if(['w','a','s','d','e','b'].includes(k)){
       if(['w','a','s','d'].includes(k)) STATE.keys[k]=true;
       if(k==='e') interact();
+      if(k==='b') showMoves();
       e.preventDefault();
     }
   });
+
   window.addEventListener('keyup', e=>{
     const k=e.key.toLowerCase();
     if(['w','a','s','d'].includes(k)) STATE.keys[k]=false;
@@ -218,3 +258,4 @@
   draw();
   requestAnimationFrame(loop);
 })();
+
